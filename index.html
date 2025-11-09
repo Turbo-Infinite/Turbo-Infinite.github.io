@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-M">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-bit ALU Simulator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style for the flag indicators */
+        .flag {
+            transition: all 0.3s ease;
+        }
+        .flag.active {
+            background-color: #22c55e; /* green-500 */
+            color: white;
+            box-shadow: 0 0 10px #22c55e;
+        }
+        .flag.inactive {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #6b7280; /* gray-500 */
+        }
+        /* Simple validation feedback */
+        input:invalid {
+            border-color: #ef4444; /* red-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-full p-4">
+
+    <div class="max-w-md w-full bg-white rounded-xl shadow-2xl p-6 sm:p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">8-Bit ALU Simulator</h1>
+
+        <!-- Inputs Section -->
+        <div class="space-y-4 mb-6">
+            <div>
+                <label for="inputA" class="block text-sm font-medium text-gray-700 mb-1">Input A (8 bits)</label>
+                <input type="text" id="inputA" value="00001101"
+                       pattern="[01]{8}" maxlength="8"
+                       title="Please enter 8 binary digits (0 or 1)"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg">
+            </div>
+            <div>
+                <label for="inputB" class="block text-sm font-medium text-gray-700 mb-1">Input B (8 bits)</label>
+                <input type="text" id="inputB" value="00000101"
+                       pattern="[01]{8}" maxlength="8"
+                       title="Please enter 8 binary digits (0 or 1)"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg">
+            </div>
+        </div>
+
+        <!-- Operations Section -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Select Operation</label>
+            <div id="operations" class="grid grid-cols-3 gap-2">
+                <button data-op="ADD" class="op-btn p-3 rounded-lg bg-blue-500 text-white font-semibold shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">ADD</button>
+                <button data-op="SUB" class="op-btn p-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">SUB</button>
+                <button data-op="AND" class="op-btn p-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">AND</button>
+                <button data-op="OR" class="op-btn p-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">OR</button>
+                <button data-op="XOR" class="op-btn p-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">XOR</button>
+                <button data-op="NOT_A" class="op-btn p-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">NOT (A)</button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-3">Result</h2>
+            <!-- Output Display -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 font-medium">Binary</span>
+                    <span id="result" class="font-mono text-2xl text-green-400">00010010</span>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-gray-400 font-medium">Decimal</span>
+                    <span id="resultDecimal" class="font-mono text-lg text-green-400">18</span>
+                </div>
+            </div>
+
+            <!-- Flags Display -->
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Flags</h3>
+            <div class="flex justify-around space-x-2">
+                <div id="flagZ" class="flag inactive flex-1 flex flex-col items-center p-3 rounded-lg">
+                    <span class="font-bold text-xl">Z</span>
+                    <span class="text-xs font-medium">ZERO</span>
+                </div>
+                <div id="flagC" class="flag inactive flex-1 flex flex-col items-center p-3 rounded-lg">
+                    <span class="font-bold text-xl">C</span>
+                    <span class="text-xs font-medium">CARRY</span>
+                </div>
+                <div id="flagV" class="flag inactive flex-1 flex flex-col items-center p-3 rounded-lg">
+                    <span class="font-bold text-xl">V</span>
+                    <span class="text-xs font-medium">OVERFLOW</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const inputA = document.getElementById('inputA');
+        const inputB = document.getElementById('inputB');
+        const operationsContainer = document.getElementById('operations');
+        const resultEl = document.getElementById('result');
+        const resultDecimalEl = document.getElementById('resultDecimal');
+        const flagZ = document.getElementById('flagZ');
+        const flagC = document.getElementById('flagC');
+        const flagV = document.getElementById('flagV');
+        
+        let currentOperation = 'ADD'; // Default operation
+
+        // --- Utility Functions ---
+
+        /**
+         * Pads a binary string to 8 bits.
+         * @param {string} binStr - The binary string.
+         * @returns {string} An 8-bit binary string.
+         */
+        function pad(binStr) {
+            return binStr.padStart(8, '0');
+        }
+
+        /**
+         * Converts an 8-bit binary string to its signed decimal representation.
+         * @param {string} binStr - 8-bit binary string.
+         * @returns {number} Decimal value from -128 to 127.
+         */
+        function binToSignedDec(binStr) {
+            if (binStr[0] === '1') {
+                // Negative number
+                return parseInt(binStr, 2) - 256;
+            }
+            return parseInt(binStr, 2);
+        }
+
+        /**
+         * Converts a decimal number to an 8-bit binary string.
+         * @param {number} dec - The decimal number.
+         * @returns {string} An 8-bit binary string.
+         */
+        function decToBin(dec) {
+            // Use bitwise AND to get the 8-bit representation (handles negatives)
+            return pad((dec & 0xFF).toString(2));
+        }
+
+        /**
+         * Updates a flag's UI (active/inactive).
+         * @param {HTMLElement} flagEl - The flag element.
+         * @param {boolean} isActive - Whether the flag is active.
+         */
+        function setFlag(flagEl, isActive) {
+            if (isActive) {
+                flagEl.classList.remove('inactive');
+                flagEl.classList.add('active');
+            } else {
+                flagEl.classList.remove('active');
+                flagEl.classList.add('inactive');
+            }
+        }
+        
+        // --- ALU Logic ---
+
+        /**
+         * Main ALU calculation function.
+         */
+        function calculate() {
+            // 1. Validate inputs
+            if (!inputA.checkValidity() || !inputB.checkValidity()) {
+                // Let the browser's :invalid CSS handle the visual cue
+                return;
+            }
+
+            const binA = inputA.value;
+            const binB = inputB.value;
+
+            // Convert to unsigned decimal numbers (0-255) for calculations
+            const decA = parseInt(binA, 2);
+            const decB = parseInt(binB, 2);
+
+            // Convert to signed decimal numbers (-128 to 127) for overflow check
+            const signedA = binToSignedDec(binA);
+            const signedB = binToSignedDec(binB);
+
+            let resultDec = 0;
+            let resultBin = '';
+            
+            // Flags
+            let zero = false;
+            let carry = false;
+            let overflow = false;
+
+            // 2. Perform Operation
+            switch (currentOperation) {
+                case 'ADD': {
+                    resultDec = decA + decB;
+                    // Check unsigned carry
+                    if (resultDec > 255) {
+                        carry = true;
+                    }
+                    // Get the 8-bit result
+                    const resultSigned = signedA + signedB;
+                    // Check signed overflow
+                    if (resultSigned > 127 || resultSigned < -128) {
+                        overflow = true;
+                    }
+                    break;
+                }
+                case 'SUB': {
+                    resultDec = decA - decB;
+                    // Check unsigned "borrow" (represented as a carry)
+                    if (decA < decB) {
+                        carry = true;
+                    }
+                    // Get the 8-bit result
+                    const resultSigned = signedA - signedB;
+                    // Check signed overflow
+                    if (resultSigned > 127 || resultSigned < -128) {
+                        overflow = true;
+                    }
+                    break;
+                }
+                case 'AND':
+                    resultDec = decA & decB;
+                    break;
+                case 'OR':
+                    resultDec = decA | decB;
+                    break;
+                case 'XOR':
+                    resultDec = decA ^ decB;
+                    break;
+                case 'NOT_A':
+                    // Inverts all 8 bits of A
+                    resultDec = ~decA;
+                    break;
+            }
+
+            // 3. Format Result
+            resultBin = decToBin(resultDec);
+            const resultSignedDec = binToSignedDec(resultBin);
+            
+            // 4. Set Flags
+            // Zero Flag: Set if the 8-bit result is exactly "00000000"
+            zero = (resultDec & 0xFF) === 0;
+
+            // 5. Update UI
+            resultEl.textContent = resultBin;
+            resultDecimalEl.textContent = resultSignedDec.toString(); // Show signed decimal
+            
+            setFlag(flagZ, zero);
+            setFlag(flagC, carry);
+            setFlag(flagV, overflow);
+        }
+
+        // --- Event Listeners ---
+
+        // Listen for clicks on operation buttons
+        operationsContainer.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                // Clear active state from all buttons
+                operationsContainer.querySelectorAll('.op-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-500', 'text-white', 'shadow-md');
+                    btn.classList.add('bg-gray-200', 'text-gray-800');
+                });
+                
+                // Set active state on clicked button
+                e.target.classList.add('bg-blue-500', 'text-white', 'shadow-md');
+                e.target.classList.remove('bg-gray-200', 'text-gray-800');
+
+                // Store the operation and recalculate
+                currentOperation = e.target.dataset.op;
+                calculate();
+            }
+        });
+
+        // Recalculate when inputs change
+        inputA.addEventListener('input', calculate);
+        inputB.addEventListener('input', calculate);
+
+        // Initial calculation on page load
+        calculate();
+
+    </script>
+</body>
+</html>
